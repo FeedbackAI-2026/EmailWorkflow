@@ -1,0 +1,412 @@
+{
+  "name": "FeedBackAi",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://feedbackai-b5l9.onrender.com/api/feedback/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1488,
+        -80
+      ],
+      "id": "352c58cf-5bcf-43ac-9381-4253709095e7",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1680,
+        -80
+      ],
+      "id": "17f3173e-2714-4064-aa19-07870bfd7495",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a customer support agent.\nWrite a personalized email reply to the customer based on their feedback.\nUnderstand the specific issue and write a response that fits THIS feedback. Do not use a generic response for every customer.\nAcknowledge the customer's specific concern and apologize when appropriate. Be helpful, professional, natural, and empathetic.\nUse only the information provided. Never invent solutions, refunds, promises, deadlines, or facts.\nCreate a short subject that matches the customer's specific issue.\nReturn:\nsubject\nemailBody\nDo not mention AI, analysis, priority, category, or internal processes.\nCustomer name:{{ $json.feedbacks[0].customerName }}\nFeedback:{{ $json.feedbacks[0].reason }} \nMain issue:{{ $json.feedbacks[0].mainIssue }}\n Sentiment: {{ $json.feedbacks[0].sentiment }}\n\nWrite the email as plain text in one continuous paragraph.\nDo not use \\n, \\n\\n, line breaks, or escape characters.\n\nDetermine whether this feedback requires human intervention. Set humanNeed to true if the issue requires human judgment, manual investigation, escalation, or a resolution the AI cannot reliably provide. Otherwise, set it to false.\nReturn humanNeed as a Boolean, not a string, in the JSON output. Do not return any explanation.\nExample: {\"humanNeed\": true}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1056,
+        -80
+      ],
+      "id": "770303fa-4f16-4802-b3c8-28c1ee5aca8d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{ \"subject\": \"Regarding your feedback\", \"emailBody\": \"Thank you for your feedback. We are sorry to hear about your experience and appreciate you bringing this to our attention. Best regards, Customer Support\", \"humanNeed\": true }"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -912,
+        128
+      ],
+      "id": "fc20910c-440e-4f52-b844-c2dea6e7b51f",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://feedbackai-b5l9.onrender.com/api/feedback/{{ $('HTTP Request').item.json.feedbacks[0].id }}/ai-response",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"aiResponse\": \"={{ $json.output.emailBody }}\",\n  \"needsHuman\": true,\n  \"emailSent\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -432,
+        224
+      ],
+      "id": "508506f8-6a4a-46ad-8309-bb78a2bee5fd",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "snJ4Q9uGEkqHiu0K",
+          "mode": "list",
+          "cachedResultName": "processedFeedbacks",
+          "cachedResultUrl": "/projects/NZ2vame0EluItn1P/datatables/snJ4Q9uGEkqHiu0K"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "feedbach_id": "={{ $('HTTP Request').item.json.feedbacks[0].id }}"
+          },
+          "matchingColumns": [
+            "feedbach_id"
+          ],
+          "schema": [
+            {
+              "id": "feedbach_id",
+              "displayName": "feedbach_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        -80
+      ],
+      "id": "e582d786-c1b4-43ea-bcf6-6473baf0ec7a",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        176
+      ],
+      "id": "0bd13682-606e-4e99-8ba7-eebb0f41526d",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "fxoAdIJbJgnVH291",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "value": "snJ4Q9uGEkqHiu0K",
+          "mode": "list",
+          "cachedResultName": "processedFeedbacks",
+          "cachedResultUrl": "/projects/NZ2vame0EluItn1P/datatables/snJ4Q9uGEkqHiu0K"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "feedbach_id",
+              "keyValue": "={{ $json.feedbacks[0].id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -1280,
+        -80
+      ],
+      "id": "c2aaf7c6-600e-49b4-9b2b-b498d4fa82da",
+      "name": "If row does not exist"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('HTTP Request').item.json.feedbacks[0].customerEmail }}",
+        "subject": "={{ $('AI Agent').item.json.output.subject }}",
+        "emailType": "text",
+        "message": "={{ $('AI Agent').item.json.output.emailBody }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -240
+      ],
+      "id": "d0f6b2e1-3564-48b9-b9c8-311db54a00f1",
+      "name": "Send a message1",
+      "webhookId": "2e255edb-99ba-416e-bc93-001392ce15be",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zUkTaOJwrcw4DK3i",
+          "name": "Gmail account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c4d94ed5-3d86-4d8b-b4b7-593d05acdb1f",
+              "leftValue": "={{ $json.output.humanNeed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        -224
+      ],
+      "id": "7ff627a0-f80f-4f8c-88c1-5c101570a4f8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('HTTP Request').item.json.feedbacks[0].customerEmail }}",
+        "subject": "={{ $('AI Agent').item.json.output.subject }}",
+        "message": "={{ $json.htmlContent }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        80
+      ],
+      "id": "a2ef82c1-df17-4fcf-8d1c-169dfd03c20c",
+      "name": "Send a message",
+      "webhookId": "347e0e52-ff7b-487c-9905-2f7081533e43",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zUkTaOJwrcw4DK3i",
+          "name": "Gmail account 7"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.item.json;\n\nconst userName = inputData.user_name || inputData.name || \"Test User\";\nconst feedbackMessage = inputData.feedback_message || inputData.feedback || \"This is a dummy feedback message for testing purposes.\";\nconst ticketId = inputData.ticket_id || \"DEMO-2026-999\";\nconst feedbackStatus = inputData.feedback_status || \"Received (Test)\";\nconst feedbackUrl = \"#\";\nconst supportEmail = \"support@example.com\";\nconst companyAddress = \"123 Innovation Street, Tech City\";\nconst currentYear = \"2026\";\nconst demoLogoUrl = \"https://via.placeholder.com/115x40?text=Feedback+AI\";\n\nconst htmlTemplate = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <meta name=\"color-scheme\" content=\"light\">\n  <title>Feedback AI | Demo</title>\n</head>\n<body style=\"margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#202124;\">\n  <div style=\"display:none;font-size:1px;color:#f3f4f6;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;\">\n    Your voice matters. Feedback AI demo system.\n  </div>\n  <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background:#f3f4f6;\">\n    <tr>\n      <td align=\"center\" style=\"padding:32px 12px;\">\n        <table role=\"presentation\" width=\"600\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;\">\n          <tr>\n            <td style=\"padding:24px 30px;border-bottom:1px solid #eeeeee;\">\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n                <tr>\n                  <td align=\"left\" valign=\"middle\">\n                    <img src=\"${demoLogoUrl}\" alt=\"Logo\" width=\"115\" style=\"display:block;width:115px;max-width:100%;height:auto;border:0;\">\n                  </td>\n                  <td align=\"right\" valign=\"middle\">\n                    <span style=\"display:inline-block;background:#eef2ff;color:#4f46e5;padding:8px 11px;border-radius:6px;font-size:11px;font-weight:bold;letter-spacing:1px;\">\n                      DEMO ENVIRONMENT\n                    </span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td align=\"center\" style=\"padding:42px 28px 34px;background:#4f46e5;\">\n              <div style=\"font-size:12px;letter-spacing:3px;font-weight:bold;color:#c7d2fe;margin-bottom:18px;\">\n                TESTING. SIMULATION. INSIGHTS.\n              </div>\n              <h1 style=\"margin:0;color:#ffffff;font-size:32px;line-height:1.2;font-weight:800;\">\n                Feedback AI<br>System Demo.\n              </h1>\n              <p style=\"margin:18px auto 0;max-width:400px;color:#e0e7ff;font-size:15px;line-height:1.8;\">\n                This is a simulated notification from your automated feedback processing pipeline.\n              </p>\n              <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin-top:26px;\">\n                <tr>\n                  <td align=\"center\" style=\"background:#ffffff;border-radius:8px;padding:13px 22px;\">\n                    <span style=\"color:#4f46e5;font-size:13px;font-weight:bold;\">\n                      POWERED BY FEEDBACK AI\n                    </span>\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding:34px 30px 20px;\">\n              <p style=\"margin:0 0 12px;color:#6b7280;font-size:13px;font-weight:bold;letter-spacing:1px;\">\n                STATUS UPDATE\n              </p>\n              <h2 style=\"margin:0 0 16px;font-size:23px;line-height:1.4;color:#171717;\">\n                Hi ${userName},\n              </h2>\n              <p style=\"margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.9;\">\n                Thank you for testing the Feedback AI platform. Your submission has been processed successfully in this sandbox environment.\n              </p>\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background:#fafafa;border:1px solid #eeeeee;border-radius:10px;\">\n                <tr>\n                  <td style=\"padding:20px;\">\n                    <p style=\"margin:0 0 14px;color:#8a8a8a;font-size:11px;font-weight:bold;letter-spacing:1.5px;\">\n                      TEST TRANSACTION\n                    </p>\n                    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">\n                      <tr>\n                        <td valign=\"top\">\n                          <p style=\"margin:0 0 5px;color:#777777;font-size:12px;\">Reference ID</p>\n                          <p style=\"margin:0;color:#202124;font-size:15px;font-weight:bold;\">\n                            ${ticketId}\n                          </p>\n                        </td>\n                        <td valign=\"top\" align=\"right\">\n                          <span style=\"display:inline-block;background:#eef2ff;color:#4f46e5;border-radius:20px;padding:7px 11px;font-size:11px;font-weight:bold;\">\n                            ${feedbackStatus}\n                          </span>\n                        </td>\n                      </tr>\n                    </table>\n                    <div style=\"height:1px;background:#e9e9e9;margin:18px 0;\"></div>\n                    <p style=\"margin:0 0 7px;color:#777777;font-size:12px;\">Submitted text</p>\n                    <p style=\"margin:0;color:#333333;font-size:14px;line-height:1.8;overflow-wrap:anywhere;\">\n                      ${feedbackMessage}\n                    </p>\n                  </td>\n                </tr>\n              </table>\n              <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin-top:22px;\">\n                <tr>\n                  <td width=\"4\" style=\"background:#4f46e5;border-radius:4px;\"></td>\n                  <td style=\"padding:15px 17px;background:#eef2ff;\">\n                    <p style=\"margin:0 0 6px;color:#4f46e5;font-size:12px;font-weight:bold;\">\n                      ✦ SYSTEM NOTE\n                    </p>\n                    <p style=\"margin:0;color:#555555;font-size:13px;line-height:1.8;\">\n                      This is an isolated test run. No real corporate infrastructure or branding is impacted.\n                    </p>\n                  </td>\n                </tr>\n              </table>\n              <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" align=\"center\" style=\"margin:30px auto 20px;\">\n                <tr>\n                  <td align=\"center\" bgcolor=\"#4f46e5\" style=\"border-radius:8px;\">\n                    <a href=\"${feedbackUrl}\" style=\"display:inline-block;padding:15px 26px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;\">\n                      View Test Details &rarr;\n                    </a>\n                  </td>\n                </tr>\n              </table>\n              <p style=\"margin:0;text-align:center;color:#8a8a8a;font-size:12px;line-height:1.8;\">\n                Need help? Reach out at\n                <a href=\"mailto:${supportEmail}\" style=\"color:#4f46e5;text-decoration:none;\">\n                  ${supportEmail}\n                </a>\n              </p>\n            </td>\n          </tr>\n          <tr>\n            <td style=\"padding:25px 25px;background:#191919;\">\n              <p style=\"margin:0 0 8px;text-align:center;color:#ffffff;font-size:16px;font-weight:bold;\">\n                Feedback AI <span style=\"color:#4f46e5;\"> × </span> Sandbox\n              </p>\n              <p style=\"margin:0 0 16px;text-align:center;color:#bdbdbd;font-size:12px;line-height:1.8;\">\n                Automated testing and demonstration workflow.\n              </p>\n              <div style=\"height:1px;background:#353535;margin:0 0 16px;\"></div>\n              <p style=\"margin:0;text-align:center;color:#999999;font-size:11px;line-height:1.9;\">\n                Simulated email notification for testing purposes.\n                <br>\n                &copy; ${currentYear} Feedback AI Demo. All rights reserved.\n                <br>\n                ${companyAddress}\n              </p>\n            </td>\n          </tr>\n        </table>\n        <p style=\"margin:18px 0 0;text-align:center;color:#9ca3af;font-size:11px;line-height:1.7;\">\n          Demo Environment Setup.\n        </p>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>`;\n\nreturn { json: { htmlContent: htmlTemplate } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        80
+      ],
+      "id": "5a582c63-531f-44f1-a291-a971ccad7a11",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If row does not exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        []
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If row does not exist": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f099321a-7fa9-4ed6-b528-a79d1e3e965c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c06ceda40c08b0133106ac218a663079aa05d1361b5a34770b039a3e5afbae82"
+  },
+  "nodeGroups": [],
+  "id": "03GtVem315j5KYxP",
+  "tags": []
+}
